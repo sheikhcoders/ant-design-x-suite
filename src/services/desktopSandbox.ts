@@ -24,8 +24,8 @@ export interface MousePosition {
 }
 
 export interface TypingOptions {
-  chunkSize?: number;
-  delayInMs?: number;
+  chunkSize: number;
+  delayInMs: number;
 }
 
 export interface ScreenshotResult {
@@ -186,7 +186,11 @@ class DesktopSandboxManager {
     if (!desktop) {
       throw new Error(`Sandbox ${sandboxId} not found`);
     }
-    await desktop.scroll(amount);
+    // Convert amount to direction: positive = up, negative = down
+    const direction = amount > 0 ? 'up' : amount < 0 ? 'down' : undefined;
+    if (direction) {
+      await desktop.scroll(direction);
+    }
   }
 
   async moveMouse(sandboxId: string, x: number, y: number): Promise<void> {
@@ -222,12 +226,16 @@ class DesktopSandboxManager {
   }
 
   // Keyboard Interactions
-  async write(sandboxId: string, text: string, options?: TypingOptions): Promise<void> {
+  async write(sandboxId: string, text: string, options?: Partial<TypingOptions>): Promise<void> {
     const desktop = this.sandboxes.get(sandboxId);
     if (!desktop) {
       throw new Error(`Sandbox ${sandboxId} not found`);
     }
-    await desktop.write(text, options);
+    const defaultOptions: TypingOptions = {
+      chunkSize: 50,
+      delayInMs: 25
+    };
+    await desktop.write(text, { ...defaultOptions, ...options });
   }
 
   async press(sandboxId: string, key: string | string[]): Promise<void> {
@@ -264,7 +272,7 @@ class DesktopSandboxManager {
   }
 
   // Screenshots
-  async screenshot(sandboxId: string): Promise<Buffer> {
+  async screenshot(sandboxId: string): Promise<Uint8Array> {
     const desktop = this.sandboxes.get(sandboxId);
     if (!desktop) {
       throw new Error(`Sandbox ${sandboxId} not found`);

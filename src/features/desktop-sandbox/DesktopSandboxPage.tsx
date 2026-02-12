@@ -7,11 +7,10 @@ import {
   StopOutlined, 
   VideoCameraOutlined,
   CameraOutlined,
-  MousePointer,
-  Keyboard,
-  FileText,
-  Command,
-  AppstoreOutlined
+  AppstoreOutlined,
+  CodeOutlined,
+  FileOutlined,
+  AimOutlined
 } from '@ant-design/icons';
 import { desktopSandboxManager, quickStartDesktop, DesktopSandboxInfo } from '../../services/desktopSandbox';
 import type { MenuProps } from 'antd';
@@ -96,8 +95,8 @@ export function DesktopSandboxPage() {
     
     try {
       const imageBuffer = await desktopSandboxManager.screenshot(sandboxInfo.id);
-      // Convert buffer to blob and create URL
-      const blob = new Blob([imageBuffer], { type: 'image/png' });
+      // Convert Uint8Array to blob and create URL
+      const blob = new Blob([imageBuffer as unknown as BlobPart], { type: 'image/png' });
       const url = URL.createObjectURL(blob);
       
       // Create download link
@@ -129,12 +128,12 @@ export function DesktopSandboxPage() {
     }
   };
 
-  const handlePressKey = async (key: string) => {
+  const handlePressKey = async (key: string | string[]) => {
     if (!sandboxInfo) return;
     
     try {
       await desktopSandboxManager.press(sandboxInfo.id, key);
-      message.success(`Pressed ${key}`);
+      message.success(`Pressed ${Array.isArray(key) ? key.join('+') : key}`);
     } catch (error) {
       message.error('Failed to press key');
     }
@@ -323,8 +322,8 @@ export function DesktopSandboxPage() {
 
                   {activeTab === 'control' && (
                     <Space direction="vertical" style={{ width: '100%' }}>
-                      {/* Mouse Controls */}
-                      <Card size="small" title={<><MousePointer /> Mouse Controls</>}>
+                       {/* Mouse Controls */}
+                      <Card size="small" title={<><AimOutlined /> Mouse Controls</>}>
                         <Space>
                           <Button onClick={() => handleMouseClick('left')}>Left Click</Button>
                           <Button onClick={() => handleMouseClick('right')}>Right Click</Button>
@@ -333,8 +332,8 @@ export function DesktopSandboxPage() {
                         </Space>
                       </Card>
 
-                      {/* Keyboard Controls */}
-                      <Card size="small" title={<><Keyboard /> Keyboard Controls</>}>
+                       {/* Keyboard Controls */}
+                      <Card size="small" title={<><CodeOutlined /> Keyboard Controls</>}>
                         <Space direction="vertical" style={{ width: '100%' }}>
                           <Space>
                             <Input
@@ -351,14 +350,14 @@ export function DesktopSandboxPage() {
                             <Button size="small" onClick={() => handlePressKey('enter')}>Enter</Button>
                             <Button size="small" onClick={() => handlePressKey('space')}>Space</Button>
                             <Button size="small" onClick={() => handlePressKey('backspace')}>Backspace</Button>
-                            <Button size="small" onClick={() => handlePressKey(['ctrl', 'c'])}>Ctrl+C</Button>
-                            <Button size="small" onClick={() => handlePressKey(['ctrl', 'v'])}>Ctrl+V</Button>
+                            <Button size="small" onClick={() => sandboxInfo && desktopSandboxManager.press(sandboxInfo.id, ['ctrl', 'c'])}>Ctrl+C</Button>
+                            <Button size="small" onClick={() => sandboxInfo && desktopSandboxManager.press(sandboxInfo.id, ['ctrl', 'v'])}>Ctrl+V</Button>
                           </Space>
                         </Space>
                       </Card>
 
-                      {/* Command Execution */}
-                      <Card size="small" title={<><Command /> Command Execution</>}>
+                       {/* Command Execution */}
+                      <Card size="small" title={<><CodeOutlined /> Command Execution</>}>
                         <Space>
                           <Input
                             placeholder="Enter command..."
@@ -375,7 +374,7 @@ export function DesktopSandboxPage() {
 
                   {activeTab === 'files' && (
                     <Space direction="vertical" style={{ width: '100%' }}>
-                      <Card size="small" title={<><FileText /> File Operations</>}>
+                      <Card size="small" title={<><FileOutlined /> File Operations</>}>
                         <Space direction="vertical" style={{ width: '100%' }}>
                           <Input
                             placeholder="File path (e.g., /home/user/document.txt)"
@@ -405,10 +404,10 @@ export function DesktopSandboxPage() {
                     <Button block icon={<CameraOutlined />} onClick={handleScreenshot}>
                       Take Screenshot
                     </Button>
-                    <Button block onClick={() => handlePressKey(['ctrl', 'alt', 't'])}>
+                    <Button block onClick={() => sandboxInfo && desktopSandboxManager.press(sandboxInfo.id, ['ctrl', 'alt', 't'])}>
                       Open Terminal
                     </Button>
-                    <Button block onClick={() => handlePressKey(['alt', 'f4'])}>
+                    <Button block onClick={() => sandboxInfo && desktopSandboxManager.press(sandboxInfo.id, ['alt', 'f4'])}>
                       Close Window
                     </Button>
                   </Space>
