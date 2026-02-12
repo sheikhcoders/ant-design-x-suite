@@ -4,6 +4,7 @@ import type {
   ChatCompletionChunk,
   OpenCodeMessage 
 } from '../types';
+import { generateSystemPrompt, getDefaultSystemPromptConfig, SystemPromptConfig } from './systemPrompt';
 
 const BASE_URL = import.meta.env.VITE_OPENCODE_BASE_URL || 'https://opencode.ai/zen/v1';
 const API_KEY = import.meta.env.VITE_OPENCODE_API_KEY || '';
@@ -130,4 +131,29 @@ export function getApiKey(): string {
 
 export function isApiConfigured(): boolean {
   return !!API_KEY && API_KEY !== 'your-opencode-api-key-here';
+}
+
+// Create a chat completion request with system prompt
+export function createChatRequestWithSystemPrompt(
+  messages: OpenCodeMessage[],
+  model: string,
+  systemConfig?: Partial<SystemPromptConfig>
+): ChatCompletionRequest {
+  const config = {
+    ...getDefaultSystemPromptConfig(model),
+    ...systemConfig,
+  };
+  
+  const systemPrompt = generateSystemPrompt(config);
+  
+  return {
+    model,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      ...messages,
+    ],
+    stream: true,
+    temperature: 0.7,
+    max_tokens: 2000,
+  };
 }

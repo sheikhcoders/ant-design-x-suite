@@ -7,7 +7,8 @@ import {
   streamChatCompletion, 
   convertMessagesToOpenCode, 
   isApiConfigured,
-  OpenCodeAPIError 
+  OpenCodeAPIError,
+  createChatRequestWithSystemPrompt
 } from '../../services/opencode';
 import { MarkdownMessage } from '../../components/MarkdownMessage';
 import { OPENCODE_MODELS } from '../../types';
@@ -37,6 +38,7 @@ export function AiApp() {
   ]);
 
   const menuItems: MenuProps['items'] = [
+    { key: '/desktop', label: 'Desktop Sandbox' },
     { key: '/playground', label: 'Code Playground' },
     { key: '/', label: 'Home' },
     { key: '/docs', label: 'Documentation' },
@@ -73,13 +75,8 @@ export function AiApp() {
         { role: 'user', content: value }
       ]);
 
-      const stream = streamChatCompletion({
-        model: selectedModel,
-        messages: apiMessages,
-        stream: true,
-        temperature: 0.7,
-        max_tokens: 2000,
-      });
+      const request = createChatRequestWithSystemPrompt(apiMessages, selectedModel);
+      const stream = streamChatCompletion(request);
 
       let fullContent = '';
       

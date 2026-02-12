@@ -20,6 +20,7 @@ export function WebApp() {
   ]);
 
   const menuItems: MenuProps['items'] = [
+    { key: '/desktop', label: 'Desktop Sandbox' },
     { key: '/playground', label: 'Code Playground' },
     { key: '/', label: 'Home' },
     { key: '/docs', label: 'Documentation' },

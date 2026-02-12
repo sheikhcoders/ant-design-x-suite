@@ -13,6 +13,7 @@
     "@ant-design/x": "^2.2.2",
     "@ant-design/x-markdown": "^2.2.2",
     "@ant-design/x-sdk": "^2.2.2",
+    "@e2b/desktop": "^2.0.1",
     "@monaco-editor/react": "^4.7.0",
     "@types/react-router-dom": "^5.3.3",
     "@vercel/sandbox": "^1.5.0",
