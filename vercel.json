@@ -1,0 +1,59 @@
+{
+  "version": 2,
+  "name": "ant-design-x-suite",
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "env": {
+    "VITE_API_KEY": "@vite_api_key",
+    "VITE_MODEL_NAME": "@vite_model_name",
+    "VITE_API_ENDPOINT": "@vite_api_endpoint"
+  },
+  "build": {
+    "env": {
+      "NODE_ENV": "production"
+    }
+  },
+  "github": {
+    "enabled": true,
+    "autoJobCancelation": true,
+    "silent": false
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://api.example.com/$1"
+    }
+  ]
+}
