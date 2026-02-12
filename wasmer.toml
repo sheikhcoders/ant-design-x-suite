@@ -1,0 +1,26 @@
+[package]
+name = "ant-design-x-suite"
+version = "1.0.0"
+description = "Ant Design X Suite - A modern React component library"
+authors = ["Your Name <your.email@example.com>"]
+license = "MIT"
+repository = "https://github.com/yourusername/ant-design-x-suite"
+
+[fs]
+# Files and directories to include in the package
+# "dist" directory contains the built application
+entries = [
+    { source = "dist", target = "/" },
+    { source = "package.json", target = "/package.json" },
+    { source = "README.md", target = "/README.md" }
+]
+
+[http_request]
+# Configure HTTP request handling
+static_dir = "/"
+enable_directory_index = true
+
+[wasmer]
+# Wasmer-specific configuration
+wasi_version = "preview1"
+enable_threads = false

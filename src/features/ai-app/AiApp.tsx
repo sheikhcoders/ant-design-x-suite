@@ -6,12 +6,17 @@ import type { MenuProps } from 'antd';
 import { 
   streamChatCompletion, 
   convertMessagesToOpenCode, 
-  isApiConfigured,
+  isApiConfigured as isOpenCodeConfigured,
   OpenCodeAPIError,
   createChatRequestWithSystemPrompt
 } from '../../services/opencode';
+import { 
+  streamOllamaChat,
+  convertMessagesToOllama, 
+  isApiConfigured as isOllamaConfigured
+} from '../../services/ollama';
 import { MarkdownMessage } from '../../components/MarkdownMessage';
-import { OPENCODE_MODELS } from '../../types';
+import { OPENCODE_MODELS, OLLAMA_MODELS } from '../../types';
 import type { Message } from '../../types';
 
 const { Header, Sider, Content } = Layout;
@@ -28,8 +33,10 @@ export function AiApp() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isThinking, setIsThinking] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<'opencode' | 'ollama'>('opencode');
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
   const [streamingContent, setStreamingContent] = useState('');
+  const [streamingThinking, setStreamingThinking] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [conversations, setConversations] = useState([
     { id: '1', title: 'General Assistant', timestamp: Date.now() },
@@ -43,13 +50,19 @@ export function AiApp() {
     { key: '/', label: 'Home' },
     { key: '/docs', label: 'Documentation' },
     { key: '/ai', label: 'AI Chat' },
+    { key: '/thinking-demo', label: 'Thinking Demo' },
   ];
 
   const handleSend = useCallback(async (value: string) => {
     if (!value.trim()) return;
-    
-    if (!isApiConfigured()) {
+
+    // Check API configuration
+    if (selectedProvider === 'opencode' && !isOpenCodeConfigured()) {
       setError('OpenCode API key not configured. Please set VITE_OPENCODE_API_KEY in your .env file');
+      return;
+    }
+    if (selectedProvider === 'ollama' && !isOllamaConfigured()) {
+      setError('Ollama API key not configured. Please set VITE_OLLAMA_API_KEY in your .env file');
       return;
     }
 
@@ -68,40 +81,85 @@ export function AiApp() {
     setInputValue('');
     setIsThinking(true);
     setStreamingContent('');
+    setStreamingThinking('');
 
     try {
-      const apiMessages = convertMessagesToOpenCode([
-        ...messages.map(m => ({ role: m.role, content: m.content })),
-        { role: 'user', content: value }
-      ]);
+      if (selectedProvider === 'ollama') {
+        // Handle Ollama with thinking support
+        const apiMessages = convertMessagesToOllama([
+          ...messages.map(m => ({ role: m.role, content: m.content })),
+          { role: 'user', content: value }
+        ]);
 
-      const request = createChatRequestWithSystemPrompt(apiMessages, selectedModel);
-      const stream = streamChatCompletion(request);
+        const stream = streamOllamaChat(selectedModel, apiMessages, {
+          think: true
+        });
 
-      let fullContent = '';
-      
-      for await (const chunk of stream) {
-        fullContent += chunk;
-        setStreamingContent(fullContent);
-      }
-
-      // Add assistant message
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: fullContent,
-        timestamp: Date.now(),
-        metadata: {
-          model: selectedModel,
+        let fullContent = '';
+        let fullThinking = '';
+        
+        for await (const chunk of stream) {
+          if (chunk.type === 'thinking') {
+            fullThinking += chunk.content;
+            setStreamingThinking(fullThinking);
+          } else if (chunk.type === 'content') {
+            fullContent += chunk.content;
+            setStreamingContent(fullContent);
+          }
         }
-      };
 
-      setMessages((prev) => [...prev, assistantMessage]);
-      setStreamingContent('');
+        // Add assistant message
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: fullContent,
+          timestamp: Date.now(),
+          metadata: {
+            model: selectedModel,
+            thinking: fullThinking,
+            provider: 'ollama'
+          }
+        };
+
+        setMessages((prev) => [...prev, assistantMessage]);
+        setStreamingContent('');
+        setStreamingThinking('');
+      } else {
+        // Handle OpenCode (original logic)
+        const apiMessages = convertMessagesToOpenCode([
+          ...messages.map(m => ({ role: m.role, content: m.content })),
+          { role: 'user', content: value }
+        ]);
+
+        const request = createChatRequestWithSystemPrompt(apiMessages, selectedModel);
+        const stream = streamChatCompletion(request);
+
+        let fullContent = '';
+        
+        for await (const chunk of stream) {
+          fullContent += chunk;
+          setStreamingContent(fullContent);
+        }
+
+        // Add assistant message
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: fullContent,
+          timestamp: Date.now(),
+          metadata: {
+            model: selectedModel,
+            provider: 'opencode'
+          }
+        };
+
+        setMessages((prev) => [...prev, assistantMessage]);
+        setStreamingContent('');
+      }
       
     } catch (err) {
       console.error('Chat error:', err);
-      if (err instanceof OpenCodeAPIError) {
+      if (err instanceof OpenCodeAPIError || err instanceof Error) {
         setError(err.message);
       } else {
         setError('An unexpected error occurred. Please try again.');
@@ -109,7 +167,7 @@ export function AiApp() {
     } finally {
       setIsThinking(false);
     }
-  }, [messages, selectedModel]);
+  }, [messages, selectedModel, selectedProvider]);
 
   const handlePromptClick = (info: { data: { key?: string } }) => {
     if (info.data.key) {
@@ -121,9 +179,23 @@ export function AiApp() {
     setMessages([]);
     setError(null);
     setStreamingContent('');
+    setStreamingThinking('');
   };
 
-  const currentModel = OPENCODE_MODELS.find(m => m.id === selectedModel);
+  const currentModel = selectedProvider === 'opencode' 
+    ? OPENCODE_MODELS.find(m => m.id === selectedModel)
+    : OLLAMA_MODELS.find(m => m.id === selectedModel);
+
+  const getAvailableModels = () => {
+    return selectedProvider === 'opencode' ? OPENCODE_MODELS : OLLAMA_MODELS;
+  };
+
+  const getModelDescription = (provider: 'opencode' | 'ollama') => {
+    if (provider === 'ollama') {
+      return `Chat with ${currentModel?.name || selectedModel} via Ollama${currentModel?.name.includes('thinking') || currentModel?.name.includes('DeepSeek') ? ' (supports thinking process)' : ''}`;
+    }
+    return `Chat with ${currentModel?.name || selectedModel} via OpenCode`;
+  };
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -167,6 +239,27 @@ export function AiApp() {
             
             <div style={{ marginBottom: 16 }}>
               <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: 8 }}>
+                Provider
+              </Text>
+              <Select
+                value={selectedProvider}
+                onChange={(value) => {
+                  setSelectedProvider(value);
+                  // Reset to first model of the provider
+                  const models = value === 'opencode' ? OPENCODE_MODELS : OLLAMA_MODELS;
+                  if (models.length > 0) {
+                    setSelectedModel(models[0].id);
+                  }
+                }}
+                style={{ width: '100%', marginBottom: 12 }}
+              >
+                <Option value="opencode">OpenCode</Option>
+                <Option value="ollama">Ollama</Option>
+              </Select>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: 8 }}>
                 Model
               </Text>
               <Select
@@ -175,7 +268,7 @@ export function AiApp() {
                 style={{ width: '100%' }}
                 placeholder="Select model"
               >
-                {OPENCODE_MODELS.map((model) => (
+                {getAvailableModels().map((model) => (
                   <Option key={model.id} value={model.id}>
                     <Space direction="vertical" size={0} style={{ width: '100%' }}>
                       <Text strong>{model.name}</Text>
@@ -222,7 +315,7 @@ export function AiApp() {
           }}
         >
           <div style={{ flex: 1, overflow: 'auto', paddingBottom: 16 }}>
-            {messages.length === 0 && !streamingContent ? (
+            {messages.length === 0 && !streamingContent && !streamingThinking ? (
               <div 
                 style={{ 
                   display: 'flex', 
@@ -234,7 +327,7 @@ export function AiApp() {
               >
                 <Welcome 
                   title="AI Assistant" 
-                  description={`Chat with ${currentModel?.name || 'AI'} via OpenCode`}
+                  description={getModelDescription(selectedProvider)}
                   style={{ maxWidth: 600, margin: '0 auto 32px' }} 
                 />
                 <Prompts 
@@ -250,6 +343,31 @@ export function AiApp() {
               <div style={{ maxWidth: 800, margin: '0 auto' }}>
                 {messages.map((message) => (
                   <div key={message.id} style={{ marginBottom: 16 }}>
+                    {/* Show thinking process for Ollama messages */}
+                    {message.role === 'assistant' && message.metadata?.thinking && (
+                      <div style={{ marginBottom: 8, marginLeft: message.role === 'user' ? 'auto' : 0, maxWidth: '80%' }}>
+                        <Bubble 
+                          role="assistant" 
+                          variant="dashed"
+                          content={
+                            <div style={{ 
+                              fontSize: '12px', 
+                              fontStyle: 'italic', 
+                              color: '#8c8c8c',
+                              background: '#f5f5f5',
+                              padding: '8px',
+                              borderRadius: '4px'
+                            }}>
+                              <strong>💭 Thinking process:</strong>
+                              <div style={{ marginTop: 4, whiteSpace: 'pre-wrap' }}>
+                                {message.metadata.thinking}
+                              </div>
+                            </div>
+                          }
+                        />
+                      </div>
+                    )}
+                    
                     <Bubble 
                       role={message.role === 'user' ? 'user' : 'assistant'} 
                       content={
@@ -267,6 +385,32 @@ export function AiApp() {
                   </div>
                 ))}
                 
+                {/* Show thinking stream */}
+                {streamingThinking && (
+                  <div style={{ marginBottom: 8, maxWidth: '80%' }}>
+                    <Bubble 
+                      role="assistant" 
+                      variant="dashed"
+                      content={
+                        <div style={{ 
+                          fontSize: '12px', 
+                          fontStyle: 'italic', 
+                          color: '#8c8c8c',
+                          background: '#f5f5f5',
+                          padding: '8px',
+                          borderRadius: '4px'
+                        }}>
+                          <strong>💭 Thinking process...</strong>
+                          <div style={{ marginTop: 4, whiteSpace: 'pre-wrap' }}>
+                            {streamingThinking}
+                          </div>
+                        </div>
+                      }
+                    />
+                  </div>
+                )}
+                
+                {/* Show content stream */}
                 {streamingContent && (
                   <div style={{ marginBottom: 16 }}>
                     <Bubble 
@@ -277,9 +421,17 @@ export function AiApp() {
                   </div>
                 )}
                 
-                {isThinking && !streamingContent && (
+                {/* Show thinking indicator */}
+                {isThinking && !streamingContent && !streamingThinking && (
                   <div style={{ marginBottom: 16 }}>
                     <Think loading />
+                  </div>
+                )}
+                
+                {/* Show thinking loading indicator */}
+                {streamingThinking && !streamingContent && (
+                  <div style={{ marginBottom: 16 }}>
+                    <Think title="AI is thinking..." loading />
                   </div>
                 )}
               </div>
@@ -296,7 +448,7 @@ export function AiApp() {
               style={{ background: colorBgContainer }} 
             />
             <Text type="secondary" style={{ fontSize: '11px', marginTop: 8, display: 'block', textAlign: 'center' }}>
-              Using {currentModel?.name || selectedModel} via OpenCode API
+              Using {currentModel?.name || selectedModel} via {selectedProvider === 'opencode' ? 'OpenCode API' : 'Ollama'}
             </Text>
           </div>
         </Content>

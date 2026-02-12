@@ -145,3 +145,86 @@ export const OPENCODE_MODELS: OpenCodeModel[] = [
     provider: 'opencode'
   }
 ];
+
+// Ollama API Types
+export interface OllamaModel {
+  id: string;
+  name: string;
+  description: string;
+  provider: string;
+}
+
+export interface OllamaMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+export interface OllamaChatRequest {
+  model: string;
+  messages: OllamaMessage[];
+  stream?: boolean;
+  system?: string;
+  template?: string;
+  context?: number[];
+  raw?: boolean;
+  format?: string;
+  num_predict?: number;
+  top_k?: number;
+  top_p?: number;
+  temperature?: number;
+  repeat_penalty?: number;
+  seed?: number;
+}
+
+export interface OllamaChatResponse {
+  model: string;
+  created_at: string;
+  message: OllamaMessage & {
+    thinking?: string;
+    content: string;
+  };
+  done: boolean;
+  total_duration?: number;
+  load_duration?: number;
+  prompt_eval_count?: number;
+  prompt_eval_duration?: number;
+  eval_count?: number;
+  eval_duration?: number;
+}
+
+export interface OllamaThinkingMessage extends OllamaMessage {
+  thinking?: string;
+  content: string;
+}
+
+export interface OllamaStreamChunk {
+  type: 'thinking' | 'content';
+  content: string;
+}
+
+export const OLLAMA_MODELS: OllamaModel[] = [
+  {
+    id: 'gpt-oss:120b',
+    name: 'GPT OSS 120B',
+    description: 'Open source model with 120B parameters',
+    provider: 'ollama'
+  },
+  {
+    id: 'llama2',
+    name: 'Llama 2',
+    description: 'Meta\'s Llama 2 model',
+    provider: 'ollama'
+  },
+  {
+    id: 'codellama',
+    name: 'Code Llama',
+    description: 'Specialized code generation model',
+    provider: 'ollama'
+  },
+  {
+    id: 'mistral',
+    name: 'Mistral',
+    description: 'Efficient and capable model',
+    provider: 'ollama'
+  }
+];

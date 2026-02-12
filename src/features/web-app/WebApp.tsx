@@ -25,6 +25,7 @@ export function WebApp() {
     { key: '/', label: 'Home' },
     { key: '/docs', label: 'Documentation' },
     { key: '/ai', label: 'AI Chat' },
+    { key: '/thinking-demo', label: 'Thinking Demo' },
   ];
 
   const handlePromptClick = (info: { data: { key?: string } }) => {

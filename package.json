@@ -18,6 +18,8 @@
     "@types/react-router-dom": "^5.3.3",
     "@vercel/sandbox": "^1.5.0",
     "antd": "^6.3.0",
+    "ollama": "^0.6.3",
+    "openai": "^6.21.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^6.30.3",
